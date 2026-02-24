@@ -6,6 +6,7 @@
 ![NVIDIA NIM](https://img.shields.io/badge/AI-NVIDIA%20NIM-green)
 ![LangChain](https://img.shields.io/badge/Framework-LangGraph-orange)
 ![LangChain](https://img.shields.io/badge/Framework-LangChain-orange)
+![Whisper](https://img.shields.io/badge/Voice-Whisper%20Large%20V3-purple)
 
 ---
 
@@ -16,8 +17,9 @@ Standard RAG systems often suffer from poor retrieval accuracy or hallucinations
 1.  **🤖 Agentic Workflow**: Uses LangGraph to orchestrate autonomous agents (Router → Retriever → Grader → Generator)
 2.  **🔍 Hybrid Search**: Combines **BM25** (keyword precision) and **FAISS** (semantic understanding) for comprehensive retrieval
 3.  **🎯 Cross-Encoder Reranking**: Re-scores retrieved documents using `ms-marco-MiniLM-L6-v2` to eliminate noise
-4.  **📊 Transparency**: Every agent decision is logged and visible to users for trust and debugging
-5.  **✅ Accuracy**: Multi-stage filtering ensures only highly relevant context reaches the LLM
+4.  **🎙️ Voice Input**: Speak your questions — transcribed in real-time by **NVIDIA NIM Whisper Large V3** via gRPC
+5.  **📊 Transparency**: Every agent decision is logged and visible to users for trust and debugging
+6.  **✅ Accuracy**: Multi-stage filtering ensures only highly relevant context reaches the LLM
 
 ---
 
@@ -80,6 +82,13 @@ The system implements a **4-layer architecture**:
 -   **Temperature Control**: 0.0 for routing/grading (deterministic), 0.3 for generation (creative)
 -   **Token Efficiency**: Max 1024 tokens per generation for fast responses
 
+### 🎙️ Voice Input — NVIDIA NIM Whisper Large V3
+-   **Speak Your Questions**: Use the microphone widget in the Chat sidebar — no typing needed
+-   **Cloud ASR**: Powered by [`nvidia/whisper-large-v3`](https://build.nvidia.com/nvidia/whisper-large-v3) via gRPC at `grpc.nvcf.nvidia.com:443`
+-   **Review & Edit**: Transcript is shown with an editable field before submitting to the agent
+-   **Visual Indicator**: Voice messages are marked with 🎙️ *Voice input* in the chat history
+-   **Native Streamlit**: Uses `st.audio_input` — no external recorder component or ffmpeg needed
+
 ### 📂 Multi-Format Document Support
 -   **Supported Formats**: PDF, DOCX, PPTX, XLSX, TXT
 -   **Intelligent Parsing**: 
@@ -101,6 +110,7 @@ The system implements a **4-layer architecture**:
 | Component | Technology | Purpose |
 |-----------|-----------|---------|
 | **LLM** | NVIDIA NIM (Llama 3.1 8B) | Answer generation & agent reasoning |
+| **Voice / STT** | NVIDIA NIM Whisper Large V3 | Speech-to-text transcription (gRPC cloud) |
 | **Orchestration** | LangGraph + LangChain | Agentic workflow state management |
 | **Vector DB** | FAISS | Dense semantic search (L2 distance) |
 | **Sparse Retrieval** | BM25 | Keyword-based search (Okapi BM25) |
@@ -137,9 +147,10 @@ The system implements a **4-layer architecture**:
     ```
 
 4.  **Configure Environment**:
-    Create a `.env` file in the root directory and add your API key from [build.nvidia.com](https://build.nvidia.com/):
+    Create a `.env` file in the root directory. Get your API keys from [build.nvidia.com](https://build.nvidia.com/):
     ```env
-    NVIDIA_API_KEY=your_api_key_here
+    NVIDIA_API_KEY=your_nvidia_api_key_here
+    whisper_large_v3=your_whisper_api_key_here
     ```
 
 5.  **Run the Application**:
@@ -180,13 +191,21 @@ The system implements a **4-layer architecture**:
 
 1. Switch to **"Chat With Data"** page
 2. Select your target knowledgebase from the dropdown
-3. Ask questions in natural language
+3. Ask questions in natural language **or use voice** (see Step 3)
 4. View the **agent's reasoning trace**:
    - Query routing decision
    - Number of documents retrieved
    - Relevance grading results
    - Final answer generation
 5. Explore **source citations** with page numbers for verification
+
+### Step 3: Use Voice Input 🎙️ *(Optional)*
+
+1. In the **Chat With Data** sidebar, find the **🎙️ Voice Input** panel
+2. Click the microphone widget and **speak your question**
+3. Wait ~1–2 seconds — Whisper automatically transcribes via NVIDIA cloud gRPC
+4. Review the **"You said:"** box — edit the transcript if needed
+5. Click **🚀 Submit** to send your spoken question to the RAG agent
 
 ---
 
@@ -204,6 +223,7 @@ NVIDIA-NIM-PDF-RAG/
 │   ├── retrieval_engine.py         # Hybrid Search & Reranking
 │   ├── agent_graph.py              # LangGraph Agentic Workflow
 │   ├── vector_manager.py           # Multi-DB Directory Management
+│   ├── voice_handler.py            # NVIDIA NIM Whisper gRPC Client
 │   ├── llm_chain.py                # LangChain Pipeline Builder
 │   ├── evaluation.py               # Ragas Evaluation Script
 │   └── utils.py                    # Helper Functions
@@ -224,13 +244,15 @@ NVIDIA-NIM-PDF-RAG/
 3. **Local Embeddings**: Zero cost, privacy-preserving, offline-capable
 4. **Multi-Knowledgebase**: Isolated contexts prevent cross-contamination
 5. **Cross-Encoder Reranking**: Improves precision at acceptable latency cost (~50ms)
+6. **gRPC for Voice**: NVIDIA NIM Whisper uses gRPC (not REST) for ultra-low latency audio transcription
 
 
 ---
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
-- **NVIDIA** for NIM API and Llama 3.1 model access
+- **NVIDIA** for NIM API — Llama 3.1 model access and Whisper Large V3 cloud ASR
+- **OpenAI** for the original Whisper model architecture
 - **LangChain/LangGraph** for RAG orchestration framework
 - **Sentence Transformers** for embedding models
 - **Facebook AI** for FAISS vector search

@@ -1,40 +1,39 @@
 import os
-import shutil
+import requests
 from typing import List
-from src.config import AppConfig
+from qdrant_client import QdrantClient
+from src.config import AppConfig, ModelConfig
 
 class VectorStoreManager:
-    """Manages multiple Vector Databases."""
+    """Manages collections in Qdrant (Docker)."""
 
     def __init__(self):
-        self.base_dir = AppConfig.VECTOR_DB_DIR
-        if not os.path.exists(self.base_dir):
-            os.makedirs(self.base_dir)
+        # We assume Qdrant is running locally
+        self.host = ModelConfig.QDRANT_HOST
+        self.port = 6333
+        self.timeout = 120.0
+        self.client = QdrantClient(host=self.host, port=self.port, timeout=self.timeout)
 
     def list_dbs(self) -> List[str]:
-        """Returns a list of available vector database names."""
-        if not os.path.exists(self.base_dir):
+        """Returns a list of available Qdrant collections."""
+        try:
+            collections_response = self.client.get_collections()
+            return sorted([c.name for c in collections_response.collections])
+        except Exception as e:
+            print(f"Error connecting to Qdrant: {e}")
             return []
-        
-        dbs = [
-            d for d in os.listdir(self.base_dir) 
-            if os.path.isdir(os.path.join(self.base_dir, d))
-        ]
-        return sorted(dbs)
 
     def get_db_path(self, db_name: str) -> str:
-        """Returns the absolute path for a given DB name."""
-        return os.path.join(self.base_dir, db_name)
+        """For Qdrant REST API, the 'path' is just the collection name string for reference."""
+        return db_name
 
     def create_db_dir(self, db_name: str) -> str:
-        """Creates a directory for a new DB."""
-        path = self.get_db_path(db_name)
-        if not os.path.exists(path):
-            os.makedirs(path)
-        return path
+        """We no longer create local directories. Just return the name."""
+        return db_name
     
     def delete_db(self, db_name: str):
-        """Deletes a vector database."""
-        path = self.get_db_path(db_name)
-        if os.path.exists(path):
-            shutil.rmtree(path)
+        """Deletes a Qdrant collection."""
+        try:
+            self.client.delete_collection(collection_name=db_name)
+        except Exception as e:
+            print(f"Error deleting collection {db_name}: {e}")

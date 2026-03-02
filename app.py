@@ -16,7 +16,7 @@ def main():
     ### 🚀 Production-Grade Intelligent Document Q&A
 
     **NIMbleRAG** transforms static documents into an **intelligent, queryable knowledge base** using an **agentic workflow** powered by LangGraph.
-    Unlike traditional RAG systems, NIMbleRAG employs autonomous agents that intelligently route, retrieve, grade, and generate answers with transparency.
+    Unlike traditional RAG systems, NIMbleRAG employs a streamlined agent pipeline designed for ultra-low latency, bypassing redundant steps for speed and transparency.
     Now with **🎙️ Voice Input** — speak your questions and let NVIDIA NIM Whisper transcribe them instantly.
 
     ---
@@ -26,13 +26,11 @@ def main():
     The system uses **LangGraph** to orchestrate a multi-node decision pipeline:
 
     ```
-    Voice / Text → Router Agent → Retrieval Agent → Grader Agent → Generator Agent → Answer
+    Voice / Text → Retrieval Agent → Generator Agent → Answer
     ```
 
     - **🎙️ Voice Input**: Speak questions — transcribed by NVIDIA NIM Whisper Large V3 (gRPC cloud)
-    - **🧭 Router Agent**: Intelligently classifies queries (RAG vs. general chat)
-    - **🔍 Retrieval Agent**: Fetches documents using hybrid search (BM25 + FAISS)
-    - **⚖️ Grader Agent**: LLM-based relevance filtering to eliminate noise
+    - **🔍 Retrieval Agent**: Fetches documents using Qdrant native hybrid search (Dense + Sparse)
     - **✍️ Generator Agent**: Context-aware answer generation with citations
     - **📊 Transparency**: Every step is logged and visible to users
 
@@ -47,15 +45,15 @@ def main():
     -   **Voice Badge in Chat**: Messages from voice input are marked with 🎙️ *Voice input*
 
     ### 🔬 Advanced Retrieval Pipeline
-    -   **Hybrid Search**: Combines **BM25** (keyword precision) + **FAISS** (semantic understanding)
+    -   **Hybrid Search**: Powered by **Qdrant** (native FastEmbed Sparse + HuggingFace Dense vectors)
     -   **Cross-Encoder Reranking**: `ms-marco-MiniLM-L6-v2` re-scores top-20 → top-5 documents
     -   **Context Construction**: Smart chunking with 1000-char windows and 100-char overlap
 
     ### 🧠 Powered by NVIDIA NIM
     -   **LLM**: Meta Llama 3.1 8B Instruct via [NVIDIA NIM](https://build.nvidia.com/)
     -   **Voice ASR**: Whisper Large V3 via NVIDIA NIM gRPC endpoint
-    -   **Low Latency**: Enterprise-grade inference with <2s response times
-    -   **Consistent Reasoning**: Temperature-controlled for routing (0.0) and generation (0.3)
+    -   **Low Latency**: Enterprise-grade inference with <2s response times and an optimized LangGraph pipeline
+    -   **Consistent Reasoning**: Temperature-controlled for generation (0.3)
 
     ### 📂 Multi-Format Support
     -   **Supported Formats**: PDF, DOCX, PPTX, XLSX, TXT
@@ -82,15 +80,14 @@ def main():
     4. Watch the data engineering pipeline process your files:
        - Document parsing and text extraction
        - Chunking with overlap for context preservation
-       - Dual indexing (FAISS vectors + BM25 keywords)
+       - Direct ingestion to Qdrant Docker Collections
 
     ### Step 2: Chat With Your Data 💬
     1. Switch to **"Chat With Data"** page
     2. Select your target knowledgebase from the dropdown
     3. Ask questions by typing **or use voice** (see below)
     4. View the **agent's reasoning trace**:
-       - Query routing decision
-       - Documents retrieved and graded
+       - Documents retrieved from Qdrant
        - Final answer generation
     5. Explore **source citations** with page numbers for verification
 
@@ -110,9 +107,9 @@ def main():
     1. **Presentation Layer**: Streamlit multi-page UI
     2. **Application Layer**: LangGraph agent orchestration
     3. **Business Logic**: Retrieval engine, document processor, vector manager, voice handler
-    4. **Data Layer**: FAISS vector stores, BM25 indices, local embeddings
+    4. **Data Layer**: Qdrant Docker container, local embeddings
 
-    *Built with ❤️ using LangGraph, LangChain, FAISS, Streamlit, and NVIDIA AI Endpoints — including Whisper Large V3 for voice.*
+    *Built with ❤️ using LangGraph, LangChain, Qdrant, Streamlit, and NVIDIA AI Endpoints — including Whisper Large V3 for voice.*
     """)
 
 if __name__ == "__main__":

@@ -12,66 +12,26 @@
 
 ## 🚀 Why NIMbleRAG?
 
-Standard RAG systems often suffer from poor retrieval accuracy or hallucinations. **NIMbleRAG** solves this by implementing an **agentic workflow** with intelligent routing, relevance grading, and transparent reasoning:
+Standard RAG systems often suffer from high latency and poor retrieval accuracy. **NIMbleRAG** solves this by implementing an **agentic workflow** with a streamlined, low-latency pipeline and transparent reasoning:
 
-1.  **🤖 Agentic Workflow**: Uses LangGraph to orchestrate autonomous agents (Router → Retriever → Grader → Generator)
-2.  **🔍 Hybrid Search**: Combines **BM25** (keyword precision) and **FAISS** (semantic understanding) for comprehensive retrieval
+1.  **🤖 Agentic Workflow**: Uses LangGraph to orchestrate autonomous agents (Retrieval → Generation)
+2.  **🔍 Hybrid Search**: Uses **Qdrant** for native hybrid retrieval (Dense HuggingFace embeddings + Sparse FastEmbed BM25)
 3.  **🎯 Cross-Encoder Reranking**: Re-scores retrieved documents using `ms-marco-MiniLM-L6-v2` to eliminate noise
 4.  **🎙️ Voice Input**: Speak your questions — transcribed in real-time by **NVIDIA NIM Whisper Large V3** via gRPC
 5.  **📊 Transparency**: Every agent decision is logged and visible to users for trust and debugging
-6.  **✅ Accuracy**: Multi-stage filtering ensures only highly relevant context reaches the LLM
-
----
-
-## 🏗️ System Architecture
-
-### High-Level Architecture
-
-![System Architecture](system_design_img/HLD.png)
-
-The system implements a **4-layer architecture**:
-
-1. **Presentation Layer**: Streamlit multi-page UI (Landing, Create KB, Chat)
-2. **Application Layer**: LangGraph agent orchestration with state management
-3. **Business Logic Layer**: Document processor, retrieval engine, vector manager
-4. **Data Layer**: FAISS vector stores, BM25 indices, local embeddings/reranker
-
-### Agentic Workflow
-
-![Agentic Workflow](system_design_img/agentic_workflow.png)
-
-**LangGraph State Machine**:
-- **Router Agent**: Classifies query type (RAG vs. general chat) using LLM
-- **Retrieval Agent**: Fetches top-20 documents via hybrid search (BM25 + FAISS)
-- **Grader Agent**: LLM evaluates each document for relevance (binary yes/no)
-- **Generator Agent**: Produces answer with filtered context and source citations
-
-### Data Ingestion Pipeline
-
-![Data Ingestion](system_design_img/data_ingestion.png)
-
-**Multi-format processing**:
-- PDF → PyMuPDF extraction
-- DOCX/PPTX → python-docx/pptx parsing
-- XLSX → pandas conversion
-- TXT → UTF-8 decoding
-
-**Dual indexing**:
-- FAISS vector store (384-dim embeddings from `all-MiniLM-L6-v2`)
-- BM25 keyword index (pickled for persistence)
+6.  **⚡ Low Latency**: Bypasses redundant LLM calls for near-instant time-to-first-token
 
 ---
 
 ## ✨ Key Features
 
 ### 🤖 Agentic Workflow (LangGraph)
--   **Intelligent Routing**: Automatically determines if query needs document retrieval
--   **Relevance Grading**: LLM-based filtering removes irrelevant chunks before generation
+-   **Streamlined Execution**: Avoids redundant multi-step LLM calls to prioritize speed
 -   **Step-by-Step Reasoning**: Transparent agent thoughts displayed in UI
 -   **State Management**: Persistent state across nodes for complex workflows
 
 ### 🔬 Advanced Retrieval Pipeline
--   **Hybrid Search**: Ensemble of BM25 (sparse) + FAISS (dense) with equal weighting (0.5/0.5)
+-   **Hybrid Search**: Native Qdrant retrieval using Dense HuggingFace embeddings + Sparse FastEmbed sparse arrays
 -   **Cross-Encoder Reranking**: Top-20 → Top-5 reranking using cross-attention scoring
 -   **Smart Chunking**: RecursiveCharacterTextSplitter with 1000-char chunks, 100-char overlap
 -   **Metadata Preservation**: Source filenames, page numbers, document types retained
@@ -79,7 +39,7 @@ The system implements a **4-layer architecture**:
 ### 🧠 Powered by NVIDIA NIM
 -   **LLM**: Meta Llama 3.1 8B Instruct via [NVIDIA NIM](https://build.nvidia.com/)
 -   **Low Latency**: Enterprise-grade inference with <2s response times
--   **Temperature Control**: 0.0 for routing/grading (deterministic), 0.3 for generation (creative)
+-   **Temperature Control**: 0.3 for creative yet accurate generation
 -   **Token Efficiency**: Max 1024 tokens per generation for fast responses
 
 ### 🎙️ Voice Input — NVIDIA NIM Whisper Large V3
@@ -98,27 +58,10 @@ The system implements a **4-layer architecture**:
 -   **Logging**: Real-time data engineering logs during ingestion
 
 ### 🗂️ Multi-Knowledgebase Management
--   **Isolated Databases**: Create separate vector stores for different projects/domains
--   **Easy Switching**: Select and query specific databases via dropdown
--   **Incremental Updates**: Add new documents to existing databases (automatic merging)
--   **Directory Structure**: `vector_dbs/<db_name>/` with FAISS + BM25 indices
-
----
-
-## 🛠️ Technology Stack
-
-| Component | Technology | Purpose |
-|-----------|-----------|---------|
-| **LLM** | NVIDIA NIM (Llama 3.1 8B) | Answer generation & agent reasoning |
-| **Voice / STT** | NVIDIA NIM Whisper Large V3 | Speech-to-text transcription (gRPC cloud) |
-| **Orchestration** | LangGraph + LangChain | Agentic workflow state management |
-| **Vector DB** | FAISS | Dense semantic search (L2 distance) |
-| **Sparse Retrieval** | BM25 | Keyword-based search (Okapi BM25) |
-| **Embeddings** | all-MiniLM-L6-v2 | Local sentence embeddings (384-dim, 80MB) |
-| **Reranker** | ms-marco-MiniLM-L6-v2 | Cross-encoder relevance scoring |
-| **UI** | Streamlit | Interactive multi-page web interface |
-| **PDF Parsing** | PyMuPDF (fitz) | Fast, accurate PDF text extraction |
-| **Evaluation** | Ragas | RAG-specific quality metrics |
+-   **Isolated Databases**: Create separate Qdrant collections for different projects/domains
+-   **Easy Switching**: Select and query specific collections via dropdown
+-   **Incremental Updates**: Add new documents to existing collections (automatic merging)
+-   **Docker Storage**: Backed to `vector_dbs/` via Docker volume mounts
 
 ---
 
@@ -132,7 +75,12 @@ The system implements a **4-layer architecture**:
     cd NVIDIA-NIM-PDF-RAG
     ```
 
-2.  **Create a Virtual Environment**:
+2.  **Start Qdrant Vector DataBase**:
+    ```bash
+    docker run -p 6333:6333 -p 6334:6334 -v $(pwd)/vector_dbs:/qdrant/storage qdrant/qdrant
+    ```
+
+3.  **Create a Virtual Environment**:
     ```bash
     python -m venv venv
     # Windows
@@ -141,19 +89,19 @@ The system implements a **4-layer architecture**:
     source venv/bin/activate
     ```
 
-3.  **Install Dependencies**:
+4.  **Install Dependencies**:
     ```bash
     pip install -r requirements.txt
     ```
 
-4.  **Configure Environment**:
+5.  **Configure Environment**:
     Create a `.env` file in the root directory. Get your API keys from [build.nvidia.com](https://build.nvidia.com/):
     ```env
     NVIDIA_API_KEY=your_nvidia_api_key_here
     whisper_large_v3=your_whisper_api_key_here
     ```
 
-5.  **Run the Application**:
+6.  **Run the Application**:
     ```bash
     streamlit run app.py
     ```
@@ -185,7 +133,7 @@ The system implements a **4-layer architecture**:
 5. Watch the data engineering pipeline:
    - Document parsing and text extraction
    - Chunking with overlap for context preservation
-   - Dual indexing (FAISS vectors + BM25 keywords)
+   - Direct injection to Qdrant Collection (Dense HuggingFace vectors + Sparse FastEmbed keywords)
 
 ### Step 2: Chat With Your Data 💬
 
@@ -193,9 +141,7 @@ The system implements a **4-layer architecture**:
 2. Select your target knowledgebase from the dropdown
 3. Ask questions in natural language **or use voice** (see Step 3)
 4. View the **agent's reasoning trace**:
-   - Query routing decision
-   - Number of documents retrieved
-   - Relevance grading results
+   - Documents retrieved
    - Final answer generation
 5. Explore **source citations** with page numbers for verification
 
@@ -206,6 +152,22 @@ The system implements a **4-layer architecture**:
 3. Wait ~1–2 seconds — Whisper automatically transcribes via NVIDIA cloud gRPC
 4. Review the **"You said:"** box — edit the transcript if needed
 5. Click **🚀 Submit** to send your spoken question to the RAG agent
+
+---
+
+## 🛠️ Technology Stack
+
+| Component | Technology | Purpose |
+|-----------|-----------|---------|
+| **LLM** | NVIDIA NIM (Llama 3.1 8B) | Answer generation & agent reasoning |
+| **Voice / STT** | NVIDIA NIM Whisper Large V3 | Speech-to-text transcription (gRPC cloud) |
+| **Orchestration** | LangGraph + LangChain | Agentic workflow state management |
+| **Vector DB** | Qdrant (Docker) | Native Hybrid Search (Dense + Sparse) |
+| **Embeddings** | all-MiniLM-L6-v2 | Local sentence embeddings (384-dim, 80MB) |
+| **Reranker** | ms-marco-MiniLM-L6-v2 | Cross-encoder relevance scoring |
+| **UI** | Streamlit | Interactive multi-page web interface |
+| **PDF Parsing** | PyMuPDF (fitz) | Fast, accurate PDF text extraction |
+| **Evaluation** | Ragas | RAG-specific quality metrics |
 
 ---
 
@@ -227,9 +189,7 @@ NVIDIA-NIM-PDF-RAG/
 │   ├── llm_chain.py                # LangChain Pipeline Builder
 │   ├── evaluation.py               # Ragas Evaluation Script
 │   └── utils.py                    # Helper Functions
-├── vector_dbs/                     # Storage for Vector Indices
-├── system_design_img/              # Architecture Diagrams
-├── SYSTEM_DESIGN_DOCUMENT.md       # Detailed System Design
+├── vector_dbs/                     # Storage for Qdrant Vector Indices (Docker Mount)
 ├── requirements.txt                # Python Dependencies
 ├── Dockerfile                      # Docker Configuration
 └── .env                            # Environment Variables (API Keys)
@@ -239,10 +199,10 @@ NVIDIA-NIM-PDF-RAG/
 
 ## 🎯 Key Design Decisions
 
-1. **Agentic Workflow over Simple Chain**: Provides transparency, flexibility, and quality filtering
-2. **Hybrid Search**: Balances keyword precision (BM25) with semantic understanding (FAISS)
-3. **Local Embeddings**: Zero cost, privacy-preserving, offline-capable
-4. **Multi-Knowledgebase**: Isolated contexts prevent cross-contamination
+1. **Agentic Workflow over Simple Chain**: Provides transparency, flexibility, and quality.
+2. **Hybrid Search**: Balances keyword precision with semantic understanding natively in Qdrant.
+3. **Local Embeddings**: Zero cost, privacy-preserving, offline-capable chunk encoding.
+4. **Multi-Knowledgebase**: Isolated collections prevent cross-contamination.
 5. **Cross-Encoder Reranking**: Improves precision at acceptable latency cost (~50ms)
 6. **gRPC for Voice**: NVIDIA NIM Whisper uses gRPC (not REST) for ultra-low latency audio transcription
 
@@ -255,7 +215,7 @@ NVIDIA-NIM-PDF-RAG/
 - **OpenAI** for the original Whisper model architecture
 - **LangChain/LangGraph** for RAG orchestration framework
 - **Sentence Transformers** for embedding models
-- **Facebook AI** for FAISS vector search
+- **Qdrant** for Vector DataBase
 - **Streamlit** for rapid UI development
 
 ---

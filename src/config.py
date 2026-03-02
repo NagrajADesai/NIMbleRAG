@@ -25,3 +25,5 @@ class ModelConfig:
     # Voice / STT
     WHISPER_API_KEY: str = os.getenv("whisper_large_v3")
     WHISPER_MODEL: str = "nvidia/whisper-large-v3"
+    # Vector DB
+    QDRANT_HOST: str = os.getenv("QDRANT_HOST", "localhost")

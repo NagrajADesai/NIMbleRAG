@@ -1,66 +1,64 @@
 import os
-import pickle
 from typing import List, Optional
-from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_community.retrievers import BM25Retriever
-from langchain.retrievers import EnsembleRetriever
+from langchain_qdrant import QdrantVectorStore, FastEmbedSparse, RetrievalMode
 from langchain.docstore.document import Document
 from sentence_transformers import CrossEncoder
-from src.config import AppConfig, ModelConfig
+from src.config import ModelConfig
+from qdrant_client import QdrantClient
 
 class RetrievalEngine:
-    """Handles Hybrid Search and Reranking."""
+    """Handles Hybrid Search and Reranking using Qdrant."""
 
     def __init__(self):
         self.embeddings = HuggingFaceEmbeddings(model_name=ModelConfig.EMBEDDING_MODEL)
-        self.vector_store: Optional[FAISS] = None
+        self.sparse_embeddings = FastEmbedSparse(model_name="Qdrant/bm25")
+        
+        self.host = ModelConfig.QDRANT_HOST
+        self.port = 6333
+        self.timeout = 120.0
+        
+        # Configure the Qdrant Client explicitly with host, port, and timeout
+        self.client = QdrantClient(host=self.host, port=self.port, timeout=self.timeout)
+        self.qdrant_url = f"http://{self.host}:{self.port}"
+        self.qdrant_store: Optional[QdrantVectorStore] = None
         self.reranker = CrossEncoder(ModelConfig.RERANKER_MODEL)
-        self.bm25_retriever: Optional[BM25Retriever] = None
 
-    def initialize_vector_store(self, text_chunks: List[Document], save_path: str):
+    def initialize_vector_store(self, text_chunks: Optional[List[Document]], save_path: str):
         """
-        Initializes or upgrades variables for the vector store.
+        Initializes or connects to a Qdrant collection.
+        'save_path' here represents the collection name from VectorStoreManager.
         """
-        # Create FAISS Vector Store
-        if os.path.exists(os.path.join(save_path, "index.faiss")):
-             self.vector_store = FAISS.load_local(save_path, self.embeddings, allow_dangerous_deserialization=True)
-             if text_chunks:
-                 new_store = FAISS.from_documents(text_chunks, embedding=self.embeddings)
-                 self.vector_store.merge_from(new_store)
-                 self.vector_store.save_local(save_path)
-        else:
-             if text_chunks:
-                self.vector_store = FAISS.from_documents(text_chunks, embedding=self.embeddings)
-                self.vector_store.save_local(save_path)
+        collection_name = save_path
         
-        # Handle BM25 Retriever Persistence
-        bm25_path = os.path.join(save_path, "bm25.pkl")
-        
+        # If chunks exist, we ingest them
         if text_chunks:
-             # Create and Save BM25
-             self.bm25_retriever = BM25Retriever.from_documents(text_chunks)
-             self.bm25_retriever.k = 10
-             with open(bm25_path, "wb") as f:
-                 pickle.dump(self.bm25_retriever, f)
-        elif os.path.exists(bm25_path):
-             # Load BM25
-             with open(bm25_path, "rb") as f:
-                 self.bm25_retriever = pickle.load(f)
-             self.bm25_retriever.k = 10
+            self.qdrant_store = QdrantVectorStore.from_documents(
+                text_chunks,
+                embedding=self.embeddings,
+                sparse_embedding=self.sparse_embeddings,
+                url=self.qdrant_url,
+                collection_name=collection_name,
+                retrieval_mode=RetrievalMode.HYBRID,
+                timeout=120.0
+            )
+        else:
+            # We are just connecting to query an existing collection
+            self.qdrant_store = QdrantVectorStore.from_existing_collection(
+                embedding=self.embeddings,
+                sparse_embedding=self.sparse_embeddings,
+                url=self.qdrant_url,
+                collection_name=collection_name,
+                retrieval_mode=RetrievalMode.HYBRID,
+                timeout=120.0
+            )
 
     def get_hybrid_retriever(self):
-        """Returns an EnsembleRetriever (BM25 + FAISS)."""
-        if not self.vector_store or not self.bm25_retriever:
-            raise ValueError("Retrievers not initialized. Please process documents first.")
+        """Returns the Qdrant native hybrid retriever."""
+        if not self.qdrant_store:
+            raise ValueError("Retrieval engine not initialized. Please call initialize_vector_store first.")
         
-        faiss_retriever = self.vector_store.as_retriever(search_kwargs={"k": 10})
-        
-        ensemble_retriever = EnsembleRetriever(
-            retrievers=[self.bm25_retriever, faiss_retriever],
-            weights=[0.5, 0.5]
-        )
-        return ensemble_retriever
+        return self.qdrant_store.as_retriever(search_kwargs={"k": 10})
 
     def rerank_documents(self, query: str, documents: List[Document], top_k: int = 5) -> List[Document]:
         """
@@ -75,7 +73,7 @@ class RetrievalEngine:
         
         # Attach scores to documents for debugging/sorting
         for doc, score in zip(documents, scores):
-            doc.metadata["score"] = score
+            doc.metadata["score"] = float(score)
 
         # Sort by score descending
         sorted_docs = sorted(documents, key=lambda x: x.metadata["score"], reverse=True)

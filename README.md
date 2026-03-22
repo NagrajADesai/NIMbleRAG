@@ -16,10 +16,9 @@ Standard RAG systems often suffer from high latency and poor retrieval accuracy.
 
 1.  **🤖 Agentic Workflow**: Uses LangGraph to orchestrate autonomous agents (Retrieval → Generation)
 2.  **🔍 Hybrid Search**: Uses **Qdrant** for native hybrid retrieval (Dense HuggingFace embeddings + Sparse FastEmbed BM25)
-3.  **🎯 Cross-Encoder Reranking**: Re-scores retrieved documents using `ms-marco-MiniLM-L6-v2` to eliminate noise
-4.  **🎙️ Voice Input**: Speak your questions — transcribed in real-time by **NVIDIA NIM Whisper Large V3** via gRPC
-5.  **📊 Transparency**: Every agent decision is logged and visible to users for trust and debugging
-6.  **⚡ Low Latency**: Bypasses redundant LLM calls for near-instant time-to-first-token
+3.  **🎙️ Voice Input**: Speak your questions — transcribed in real-time by **NVIDIA NIM Whisper Large V3** via gRPC
+4.  **📊 Transparency**: Every agent decision is logged and visible to users for trust and debugging
+5.  **⚡ Low Latency**: Bypasses redundant LLM calls for near-instant time-to-first-token
 
 ---
 
@@ -32,7 +31,6 @@ Standard RAG systems often suffer from high latency and poor retrieval accuracy.
 
 ### 🔬 Advanced Retrieval Pipeline
 -   **Hybrid Search**: Native Qdrant retrieval using Dense HuggingFace embeddings + Sparse FastEmbed sparse arrays
--   **Cross-Encoder Reranking**: Top-20 → Top-5 reranking using cross-attention scoring
 -   **Smart Chunking**: RecursiveCharacterTextSplitter with 1000-char chunks, 100-char overlap
 -   **Metadata Preservation**: Source filenames, page numbers, document types retained
 
@@ -65,7 +63,7 @@ Standard RAG systems often suffer from high latency and poor retrieval accuracy.
 
 ---
 
-## 🚀 Setup & Installation
+## 🚀 Setup & Installation (Decoupled Architecture)
 
 ### Option 1: Local Development
 
@@ -80,45 +78,46 @@ Standard RAG systems often suffer from high latency and poor retrieval accuracy.
     docker run -p 6333:6333 -p 6334:6334 -v $(pwd)/vector_dbs:/qdrant/storage qdrant/qdrant
     ```
 
-3.  **Create a Virtual Environment**:
+3.  **Create a Virtual Environment & Install Dependencies**:
     ```bash
     python -m venv venv
     # Windows
     venv\Scripts\activate
     # Linux/Mac
     source venv/bin/activate
-    ```
-
-4.  **Install Dependencies**:
-    ```bash
+    
     pip install -r requirements.txt
     ```
 
-5.  **Configure Environment**:
+4.  **Configure Environment**:
     Create a `.env` file in the root directory. Get your API keys from [build.nvidia.com](https://build.nvidia.com/):
     ```env
     NVIDIA_API_KEY=your_nvidia_api_key_here
     whisper_large_v3=your_whisper_api_key_here
     ```
 
-6.  **Run the Application**:
+5.  **Run the FastAPI Backend** (Terminal 1):
     ```bash
-    streamlit run app.py
+    uvicorn backend.api.main:app --reload
     ```
-    Access at `http://localhost:8501`
+    Access interactive API documentation at `http://localhost:8000/docs`
 
-### Option 2: Docker Deployment
-
-1.  **Build the Image**:
+6.  **Run the Streamlit Frontend** (Terminal 2):
     ```bash
-    docker build -t nimblerag .
+    streamlit run frontend/app.py
     ```
+    Access the UI at `http://localhost:8501`
 
-2.  **Run the Container**:
+### Option 2: Docker Compose Deployment
+
+1.  Ensure `.env` is created.
+2.  **Run with Docker Compose**:
     ```bash
-    docker run -p 8501:8501 --env-file .env nimblerag
+    docker-compose up --build
     ```
-    Access the app at `http://localhost:8501`
+    - UI: `http://localhost:8501`
+    - API: `http://localhost:8000/docs`
+    - Qdrant is automatically started and networked.
 
 ---
 
@@ -164,7 +163,6 @@ Standard RAG systems often suffer from high latency and poor retrieval accuracy.
 | **Orchestration** | LangGraph + LangChain | Agentic workflow state management |
 | **Vector DB** | Qdrant (Docker) | Native Hybrid Search (Dense + Sparse) |
 | **Embeddings** | all-MiniLM-L6-v2 | Local sentence embeddings (384-dim, 80MB) |
-| **Reranker** | ms-marco-MiniLM-L6-v2 | Cross-encoder relevance scoring |
 | **UI** | Streamlit | Interactive multi-page web interface |
 | **PDF Parsing** | PyMuPDF (fitz) | Fast, accurate PDF text extraction |
 | **Evaluation** | Ragas | RAG-specific quality metrics |
@@ -203,8 +201,7 @@ NVIDIA-NIM-PDF-RAG/
 2. **Hybrid Search**: Balances keyword precision with semantic understanding natively in Qdrant.
 3. **Local Embeddings**: Zero cost, privacy-preserving, offline-capable chunk encoding.
 4. **Multi-Knowledgebase**: Isolated collections prevent cross-contamination.
-5. **Cross-Encoder Reranking**: Improves precision at acceptable latency cost (~50ms)
-6. **gRPC for Voice**: NVIDIA NIM Whisper uses gRPC (not REST) for ultra-low latency audio transcription
+5. **gRPC for Voice**: NVIDIA NIM Whisper uses gRPC (not REST) for ultra-low latency audio transcription
 
 
 ---

@@ -6,9 +6,9 @@ from ragas.metrics import (
     answer_relevance,
     context_recall,
 )
-from src.llm_chain import LLMChainBuilder
-from src.retrieval_engine import RetrievalEngine
-from src.config import ModelConfig
+from backend.src.llm_chain import LLMChainBuilder
+from backend.src.retrieval_engine import RetrievalEngine
+from backend.src.config import ModelConfig
 
 # Note: Ragas requires an OpenAI API key by default for evaluation metrics 
 # unless configured with a different LLM for evaluation.

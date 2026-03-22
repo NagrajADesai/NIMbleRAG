@@ -1,13 +1,6 @@
 import streamlit as st
-import nest_asyncio
-nest_asyncio.apply()
 import time
-from src.config import AppConfig, ModelConfig
-from src.retrieval_engine import RetrievalEngine
-from src.vector_manager import VectorStoreManager
-from src.agent_graph import build_graph
-from src.voice_handler import transcribe_audio
-
+from api_client import APIClient
 
 def stream_text(text):
     """Yields text one character at a time for streaming effect."""
@@ -15,41 +8,15 @@ def stream_text(text):
         yield char
         time.sleep(0.005)
 
-
 def initialize_chat_state():
     if "messages" not in st.session_state:
         st.session_state.messages = []
     if "current_db" not in st.session_state:
         st.session_state.current_db = None
-    if "agent_app" not in st.session_state:
-        st.session_state.agent_app = None
     if "voice_question" not in st.session_state:
         st.session_state.voice_question = None
     if "last_audio_hash" not in st.session_state:
         st.session_state.last_audio_hash = None
-
-
-def load_agent(db_name, vector_manager, retrieval_engine):
-    """Loads the agent for the selected DB."""
-    try:
-        db_path = vector_manager.get_db_path(db_name)
-        retrieval_engine.initialize_vector_store(text_chunks=None, save_path=db_path)
-        retriever = retrieval_engine.get_hybrid_retriever()
-        return build_graph(retriever)
-    except Exception as e:
-        st.error(f"Error loading database '{db_name}': {e}")
-        return None
-
-
-def run_agent(agent_app, user_question):
-    """Invoke the agent and return answer, sources, and steps."""
-    inputs = {"question": user_question}
-    final_state = agent_app.invoke(inputs)
-    answer_text = final_state.get("generation", "I couldn't generate an answer.")
-    source_docs = final_state.get("documents", [])
-    steps = final_state.get("steps", [])
-    return answer_text, source_docs, steps
-
 
 def render_chat_message(msg):
     """Render a single message from history."""
@@ -66,12 +33,11 @@ def render_chat_message(msg):
         if "sources" in msg and msg["sources"]:
             with st.expander("📚 Source Citations"):
                 for i, doc in enumerate(msg["sources"]):
-                    source = doc.metadata.get('source', 'Unknown')
-                    page = doc.metadata.get('page', 'Unknown')
+                    source = doc.get('source', 'Unknown')
+                    page = doc.get('page', 'Unknown')
                     st.markdown(f"**{i+1}.** *{source}* (Page {page})")
 
-
-def display_agent_response(agent_app, user_question):
+def display_agent_response(user_question, selected_db):
     """Stream and display the agent response bubble."""
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
@@ -79,7 +45,12 @@ def display_agent_response(agent_app, user_question):
         steps_display = st.status("🧠 Agent Thinking...", expanded=True)
 
         try:
-            answer_text, source_docs, steps = run_agent(agent_app, user_question)
+            # Call backend API
+            result = APIClient.send_query(user_question, selected_db)
+            
+            answer_text = result.get("answer", "I couldn't generate an answer.")
+            source_docs = result.get("sources", [])
+            steps = result.get("steps", [])
 
             for step in steps:
                 steps_display.write(f"- {step}")
@@ -96,9 +67,9 @@ def display_agent_response(agent_app, user_question):
             if source_docs:
                 with st.expander("📚 View Source Citations"):
                     for i, doc in enumerate(source_docs):
-                        source = doc.metadata.get('source', 'Unknown')
-                        page = doc.metadata.get('page', 'Unknown')
-                        content_preview = doc.page_content[:200].replace("\n", " ") + "..."
+                        source = doc.get('source', 'Unknown')
+                        page = doc.get('page', 'Unknown')
+                        content_preview = doc.get('content', '') + "..."
                         st.markdown(f"**{i+1}.** *{source}* (Page {page})")
                         st.caption(content_preview)
 
@@ -113,16 +84,13 @@ def display_agent_response(agent_app, user_question):
             steps_display.update(label="❌ Error", state="error")
             st.error(f"Error generating response: {e}")
 
-
 def main():
     st.set_page_config("Chat With Data", page_icon="💬", layout="wide")
     st.title("💬 Chat With Agent")
 
     initialize_chat_state()
 
-    vector_manager = VectorStoreManager()
-    retrieval_engine = RetrievalEngine()
-    dbs = vector_manager.list_dbs()
+    dbs = APIClient.get_databases()
 
     # ── Sidebar ──────────────────────────────────────────────────────────────
     with st.sidebar:
@@ -155,7 +123,6 @@ def main():
         st.subheader("🎙️ Voice Input")
         st.caption("Record your question — Whisper will transcribe it.")
 
-        # Native Streamlit audio recorder (no ffmpeg needed)
         audio_input = st.audio_input(
             label="Click to record",
             key="voice_recorder",
@@ -165,14 +132,13 @@ def main():
             audio_bytes = audio_input.read()
             audio_hash = hash(audio_bytes)
 
-            # Only transcribe when a NEW recording is detected
             if audio_hash != st.session_state.last_audio_hash:
                 st.session_state.last_audio_hash = audio_hash
-                st.session_state.voice_question = None  # Reset previous
+                st.session_state.voice_question = None
 
                 with st.spinner("🎙️ Transcribing with Whisper..."):
                     try:
-                        transcript = transcribe_audio(audio_bytes)
+                        transcript = APIClient.transcribe_audio(audio_bytes)
                         if transcript:
                             st.session_state.voice_question = transcript
                         else:
@@ -180,11 +146,9 @@ def main():
                     except Exception as e:
                         st.error(f"Transcription error: {e}")
 
-        # Show transcript + submit controls
         if st.session_state.voice_question:
             st.markdown("---")
             st.markdown("**📝 You said:**")
-            # Highlighted box showing what was spoken
             st.info(f'"{st.session_state.voice_question}"')
 
             edited_transcript = st.text_area(
@@ -216,21 +180,15 @@ def main():
         if selected_db != st.session_state.current_db:
             st.session_state.current_db = selected_db
             st.session_state.messages = []
-            with st.spinner(f"Loading Agent for '{selected_db}'..."):
-                st.session_state.agent_app = load_agent(
-                    selected_db, vector_manager, retrieval_engine
-                )
 
     # ── Chat Area ────────────────────────────────────────────────────────────
-    if not st.session_state.agent_app:
+    if not selected_db:
         if not dbs:
             st.info("👈 Please create a Knowledgebase first.")
     else:
-        # Render chat history
         for msg in st.session_state.messages:
             render_chat_message(msg)
 
-        # ── Handle pending VOICE question ─────────────────────────────────────
         pending_voice = st.session_state.pop("_pending_voice", None)
         if pending_voice:
             with st.chat_message("user"):
@@ -243,9 +201,8 @@ def main():
                 "via_voice": True,
             })
 
-            display_agent_response(st.session_state.agent_app, pending_voice)
+            display_agent_response(pending_voice, selected_db)
 
-        # ── Typed question via chat input ─────────────────────────────────────
         if user_question := st.chat_input("Ask a question... or use 🎙️ Voice Input →"):
             with st.chat_message("user"):
                 st.markdown(user_question)
@@ -256,8 +213,7 @@ def main():
                 "via_voice": False,
             })
 
-            display_agent_response(st.session_state.agent_app, user_question)
-
+            display_agent_response(user_question, selected_db)
 
 if __name__ == "__main__":
     main()

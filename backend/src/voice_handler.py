@@ -13,7 +13,7 @@ import riva.client
 import riva.client.proto.riva_asr_pb2 as rasr
 import riva.client.proto.riva_asr_pb2_grpc as rasr_grpc
 
-from src.config import ModelConfig
+from backend.src.config import ModelConfig
 
 # ── NVIDIA Cloud Functions (NVCF) gRPC endpoint ────────────────────────────
 RIVA_SERVER = "grpc.nvcf.nvidia.com:443"

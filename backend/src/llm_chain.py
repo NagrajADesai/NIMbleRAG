@@ -1,7 +1,7 @@
 from langchain_nvidia_ai_endpoints import ChatNVIDIA
 from langchain.chains import ConversationalRetrievalChain
 from langchain.memory import ConversationBufferMemory
-from src.config import ModelConfig
+from backend.src.config import ModelConfig
 
 class LLMChainBuilder:
     """Builds the Conversational Retrieval Chain."""

@@ -6,7 +6,7 @@ except ImportError:
 
 from langchain.docstore.document import Document
 from typing import List, Dict, Any
-from src.config import AppConfig
+from backend.src.config import AppConfig
 import io
 import pandas as pd
 from docx import Document as DocxDocument

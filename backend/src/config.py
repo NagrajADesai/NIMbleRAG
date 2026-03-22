@@ -20,7 +20,6 @@ class ModelConfig:
     NVIDIA_API_KEY: str = os.getenv("NVIDIA_API_KEY")
     LLM_MODEL: str = "meta/llama-3.1-8b-instruct"
     EMBEDDING_MODEL: str = "all-MiniLM-L6-v2"
-    RERANKER_MODEL: str = "cross-encoder/ms-marco-MiniLM-L6-v2"
     NVIDIA_BASE_URL: str = "https://integrate.api.nvidia.com/v1"
     # Voice / STT
     WHISPER_API_KEY: str = os.getenv("whisper_large_v3")

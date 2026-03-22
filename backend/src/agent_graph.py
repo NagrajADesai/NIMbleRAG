@@ -6,7 +6,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import JsonOutputParser, StrOutputParser
 from langchain.docstore.document import Document
-from src.config import ModelConfig
+from backend.src.config import ModelConfig
 import json
 
 # --- State Definition ---

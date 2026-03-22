@@ -1,7 +1,7 @@
 import streamlit as st
 import nest_asyncio
 nest_asyncio.apply()
-from src.config import AppConfig
+from config import AppConfig
 
 def main():
     st.set_page_config(
@@ -46,7 +46,6 @@ def main():
 
     ### 🔬 Advanced Retrieval Pipeline
     -   **Hybrid Search**: Powered by **Qdrant** (native FastEmbed Sparse + HuggingFace Dense vectors)
-    -   **Cross-Encoder Reranking**: `ms-marco-MiniLM-L6-v2` re-scores top-20 → top-5 documents
     -   **Context Construction**: Smart chunking with 1000-char windows and 100-char overlap
 
     ### 🧠 Powered by NVIDIA NIM

@@ -119,3 +119,6 @@ python-dateutil==2.9.0.post0
 
 # ── Testing ──────────────────────────────────────────────────────────────────
 pytest==9.0.2
+fastapi
+uvicorn
+python-multipart

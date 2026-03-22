@@ -2,7 +2,7 @@ import os
 import requests
 from typing import List
 from qdrant_client import QdrantClient
-from src.config import AppConfig, ModelConfig
+from backend.src.config import AppConfig, ModelConfig
 
 class VectorStoreManager:
     """Manages collections in Qdrant (Docker)."""

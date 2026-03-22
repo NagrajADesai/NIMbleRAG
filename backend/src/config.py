@@ -26,3 +26,5 @@ class ModelConfig:
     WHISPER_MODEL: str = "nvidia/whisper-large-v3"
     # Vector DB
     QDRANT_HOST: str = os.getenv("QDRANT_HOST", "localhost")
+    # Reranker
+    RERANKER_MODEL: str = "D:/assignments/NVIDIA-NIM-PDF-RAG/models--cross-encoder--ms-marco-MiniLM-L6-v2/snapshots/c5ee24cb16019beea0893ab7796b1df96625c6b8"

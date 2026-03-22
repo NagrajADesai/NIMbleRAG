@@ -30,7 +30,7 @@ def main():
     ```
 
     - **🎙️ Voice Input**: Speak questions — transcribed by NVIDIA NIM Whisper Large V3 (gRPC cloud)
-    - **🔍 Retrieval Agent**: Fetches documents using Qdrant native hybrid search (Dense + Sparse)
+    - **🔍 Retrieval Agent**: Fetches documents using Qdrant native hybrid search (Dense + Sparse BM25) and reranks using a Cross-Encoder
     - **✍️ Generator Agent**: Context-aware answer generation with citations
     - **📊 Transparency**: Every step is logged and visible to users
 
@@ -45,7 +45,8 @@ def main():
     -   **Voice Badge in Chat**: Messages from voice input are marked with 🎙️ *Voice input*
 
     ### 🔬 Advanced Retrieval Pipeline
-    -   **Hybrid Search**: Powered by **Qdrant** (native FastEmbed Sparse + HuggingFace Dense vectors)
+    -   **Hybrid Search**: Powered by **Qdrant** (native FastEmbed Sparse for BM25 + HuggingFace Dense vectors)
+    -   **Precision Reranking**: Filters and reranks documents using `ms-marco-MiniLM-L6-v2` cross-encoder to surface the most relevant context.
     -   **Context Construction**: Smart chunking with 1000-char windows and 100-char overlap
 
     ### 🧠 Powered by NVIDIA NIM

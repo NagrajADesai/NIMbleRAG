@@ -4,6 +4,9 @@ from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_qdrant import QdrantVectorStore, FastEmbedSparse, RetrievalMode
 from langchain.docstore.document import Document
 from backend.src.config import ModelConfig
+from langchain.retrievers import ContextualCompressionRetriever
+from langchain.retrievers.document_compressors import CrossEncoderReranker
+from langchain_community.cross_encoders import HuggingFaceCrossEncoder
 from qdrant_client import QdrantClient
 
 class RetrievalEngine:
@@ -56,4 +59,12 @@ class RetrievalEngine:
         if not self.qdrant_store:
             raise ValueError("Retrieval engine not initialized. Please call initialize_vector_store first.")
         
-        return self.qdrant_store.as_retriever(search_kwargs={"k": 5})
+        base_retriever = self.qdrant_store.as_retriever(search_kwargs={"k": 10})
+        
+        model = HuggingFaceCrossEncoder(model_name=ModelConfig.RERANKER_MODEL)
+        compressor = CrossEncoderReranker(model=model, top_n=5)
+        
+        return ContextualCompressionRetriever(
+            base_compressor=compressor,
+            base_retriever=base_retriever
+        )

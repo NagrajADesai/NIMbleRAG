@@ -15,7 +15,7 @@
 Standard RAG systems often suffer from high latency and poor retrieval accuracy. **NIMbleRAG** solves this by implementing an **agentic workflow** with a streamlined, low-latency pipeline and transparent reasoning:
 
 1.  **🤖 Agentic Workflow**: Uses LangGraph to orchestrate autonomous agents (Retrieval → Generation)
-2.  **🔍 Hybrid Search**: Uses **Qdrant** for native hybrid retrieval (Dense HuggingFace embeddings + Sparse FastEmbed BM25)
+2.  **🔍 Hybrid Search & Reranking**: Uses **Qdrant** for native hybrid retrieval (Dense + Sparse BM25) and local Cross-Encoder reranking
 3.  **🎙️ Voice Input**: Speak your questions — transcribed in real-time by **NVIDIA NIM Whisper Large V3** via gRPC
 4.  **📊 Transparency**: Every agent decision is logged and visible to users for trust and debugging
 5.  **⚡ Low Latency**: Bypasses redundant LLM calls for near-instant time-to-first-token
@@ -30,7 +30,8 @@ Standard RAG systems often suffer from high latency and poor retrieval accuracy.
 -   **State Management**: Persistent state across nodes for complex workflows
 
 ### 🔬 Advanced Retrieval Pipeline
--   **Hybrid Search**: Native Qdrant retrieval using Dense HuggingFace embeddings + Sparse FastEmbed sparse arrays
+-   **Hybrid Search**: Native Qdrant retrieval using Dense HuggingFace embeddings + FastEmbed for Sparse BM25 search
+-   **Precision Reranking**: Uses local `ms-marco-MiniLM-L6-v2` cross-encoder to select the top 5 most relevant documents
 -   **Smart Chunking**: RecursiveCharacterTextSplitter with 1000-char chunks, 100-char overlap
 -   **Metadata Preservation**: Source filenames, page numbers, document types retained
 
@@ -70,7 +71,7 @@ Standard RAG systems often suffer from high latency and poor retrieval accuracy.
 1.  **Clone the repository**:
     ```bash
     git clone <repository-url>
-    cd NVIDIA-NIM-PDF-RAG
+    cd NIMbleRAG
     ```
 
 2.  **Start Qdrant Vector DataBase**:
@@ -107,6 +108,10 @@ Standard RAG systems often suffer from high latency and poor retrieval accuracy.
     streamlit run frontend/app.py
     ```
     Access the UI at `http://localhost:8501`
+
+7.  **Quick Run Script** (Windows only):
+    Instead of opening two terminals manually, you can use the provided script to launch both the frontend and backend automatically using the `nvidia-nim` conda environment:
+    - Run `start_app.bat` (Double-click or run from Command Prompt/PowerShell)
 
 ### Option 2: Docker Compose Deployment
 
@@ -161,8 +166,9 @@ Standard RAG systems often suffer from high latency and poor retrieval accuracy.
 | **LLM** | NVIDIA NIM (Llama 3.1 8B) | Answer generation & agent reasoning |
 | **Voice / STT** | NVIDIA NIM Whisper Large V3 | Speech-to-text transcription (gRPC cloud) |
 | **Orchestration** | LangGraph + LangChain | Agentic workflow state management |
-| **Vector DB** | Qdrant (Docker) | Native Hybrid Search (Dense + Sparse) |
+| **Vector DB** | Qdrant (Docker) | Native Hybrid Search (Dense + Sparse BM25) |
 | **Embeddings** | all-MiniLM-L6-v2 | Local sentence embeddings (384-dim, 80MB) |
+| **Reranker** | ms-marco-MiniLM | Local Cross-Encoder for precision reranking |
 | **UI** | Streamlit | Interactive multi-page web interface |
 | **PDF Parsing** | PyMuPDF (fitz) | Fast, accurate PDF text extraction |
 | **Evaluation** | Ragas | RAG-specific quality metrics |
@@ -172,7 +178,7 @@ Standard RAG systems often suffer from high latency and poor retrieval accuracy.
 ## 📂 Project Structure
 
 ```text
-NVIDIA-NIM-PDF-RAG/
+NIMbleRAG/
 ├── app.py                          # Main Landing Page & Navigation
 ├── pages/
 │   ├── 1_Creating_Knowledgebase.py # Admin: Ingest & Index Documents
